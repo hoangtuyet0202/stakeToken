@@ -19,11 +19,20 @@ export const TransactionProvider = ({ children }) => {
   const [currentAccount, setCurrentAccount] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [balance, setBalance] = useState(0);
-  const [amount, setAmount] = useState(0);
+  const [staked_balance, setStaked_balance] = useState(0);
+  const [reward, setReward] = useState(0);
+  const [amount, setAmount] = useState("");
+  const [stake_amount, setStake_amount] = useState("");
+  const [unstake_amount, setUnstake_amount] = useState("");
 
-  const handleChange = (e) => {
-    console.log('parseInt(e.target.value)', parseInt(e.target.value))
-    setAmount(parseInt(e.target.value));
+  const handleChangeAmount = (e) => {
+    setAmount(e.target.value);
+  };
+  const handleChangeStakeAmount = (e) => {
+    setStake_amount(e.target.value);
+  };
+  const handleChangeUnstakeAmount = (e) => {
+    setUnstake_amount(e.target.value);
   };
 
   const checkIfWalletIsConnect = async () => {
@@ -55,15 +64,16 @@ export const TransactionProvider = ({ children }) => {
       throw new Error("No ethereum object");
     }
   };
-  const getBalance = async () => {
+  const getData = async () => {
     try {
       if (ethereum) {
-        console.log("test");
         const transactionsContract = createEthereumContract();
-
-        const result = await transactionsContract.balanceOf(currentAccount);
-        console.log(result);
-        setBalance(result.toNumber());
+        const resultStaked = await transactionsContract.stakeOf(currentAccount);
+        setStaked_balance(resultStaked.toNumber());
+        const resultBalance = await transactionsContract.balanceOf(currentAccount);
+        setBalance(resultBalance.toNumber());
+        const resultReward = await transactionsContract.rewardOf(currentAccount);
+        setReward(resultReward.toNumber());
       } else {
         console.log("Ethereum is not present");
       }
@@ -76,9 +86,11 @@ export const TransactionProvider = ({ children }) => {
       if (ethereum) {
         const transactionsContract = createEthereumContract();
 
-        await transactionsContract.mint(amount);
-        const result = await transactionsContract.balanceOf(currentAccount);
-        setBalance(result.toNumber());
+        const transactionHash = await transactionsContract.mint(parseInt(amount));
+        await transactionHash.wait();
+        setIsLoading(!isLoading);
+        setAmount("")
+       
       } else {
         console.log("Ethereum is not present");
       }
@@ -89,12 +101,59 @@ export const TransactionProvider = ({ children }) => {
   const logout = () => {
     setCurrentAccount("")
   }
+  const stake_token = async () => {
+    try {
+      if (ethereum) {
+        const transactionsContract = createEthereumContract();
+        const transactionHash = await transactionsContract.createStake(parseInt(stake_amount));
+        await transactionHash.wait();
+        setIsLoading(!isLoading);
+        setStake_amount("");
+      } else {
+        console.log("Ethereum is not present");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  const unstake_token = async () => {
+    try {
+      if (ethereum) {
+        const transactionsContract = createEthereumContract();
+
+        const transactionHash = await transactionsContract.removeStake(parseInt(unstake_amount));
+        await transactionHash.wait();
+        setIsLoading(!isLoading);
+        setUnstake_amount("");
+      } else {
+        console.log("Ethereum is not present");
+
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  const withdrawReward = async () => {
+    try {
+      if (ethereum) {
+        const transactionsContract = createEthereumContract();
+
+        const transactionHash = await transactionsContract.withdrawReward();
+        await transactionHash.wait();
+        setIsLoading(!isLoading);
+      } else {
+        console.log("Ethereum is not present");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
   useEffect(() => {
     checkIfWalletIsConnect();
   }, []);
-  useEffect(() => {
-    getBalance();
-  }, []);
+  useEffect( () => {
+    getData();
+  }, [isLoading]);
 
   return (
     <TransactionContext.Provider
@@ -102,10 +161,20 @@ export const TransactionProvider = ({ children }) => {
         connectWallet,
         currentAccount,
         balance,
-        handleChange,
+        handleChangeAmount,
         claimToken, 
         amount,
-        logout
+        logout,
+        isLoading,
+        staked_balance,
+        reward,
+        stake_token,
+        stake_amount,
+        unstake_amount,
+        unstake_token,
+        withdrawReward,
+        handleChangeStakeAmount,
+        handleChangeUnstakeAmount,
       }}
     >
       {children}

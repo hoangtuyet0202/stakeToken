@@ -7,12 +7,17 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MyToken is ERC20, Ownable {
     using SafeMath for uint256;
+    event ClaimedEvent(address from, uint amount, uint256 timestamp);
+    event StakeEvent(address from, uint amount, uint256 timestamp);
+    event UnstakeEvent(address from, uint amount, uint256 timestamp);
+    event WithdrawEvent(address from, uint256 timestamp);
     constructor(uint256 initialSupply) ERC20("My Token", "MTK") {
         _mint(msg.sender, initialSupply);
     }
 
     function mint(uint256 amount) public  {
         _mint(msg.sender, amount);
+        emit ClaimedEvent(msg.sender, amount, block.timestamp);
     }
 
     // stakeholder
@@ -51,11 +56,16 @@ contract MyToken is ERC20, Ownable {
         _burn(msg.sender, _stake); //chuyển _stake vào address sender
         if(stakes[msg.sender] == 0) addStakeholder(msg.sender);
         stakes[msg.sender] = stakes[msg.sender].add(_stake);
+        distributeRewards();
+        emit StakeEvent(msg.sender, _stake, block.timestamp);
+
     }
     function removeStake(uint256 _stake) public {
         stakes[msg.sender] = stakes[msg.sender].sub(_stake);
         if(stakes[msg.sender] == 0) removeStakeholder(msg.sender);
         _mint(msg.sender, _stake);
+        distributeRewards();
+        emit UnstakeEvent(msg.sender, _stake, block.timestamp);
     }
 
     // rewards
@@ -73,7 +83,7 @@ contract MyToken is ERC20, Ownable {
     function calculateReward(address _stakeholder) public view returns(uint256) {
         return stakes[_stakeholder] /100;
     }
-    function distributeRewards() public onlyOwner {
+    function distributeRewards() public {
         for(uint256 i = 0; i< stakeholders.length; i++) {
             address stakeholder = stakeholders[i];
             uint256 reward = calculateReward(stakeholder);
@@ -84,5 +94,6 @@ contract MyToken is ERC20, Ownable {
         uint256 reward = rewards[msg.sender];
         rewards[msg.sender] = 0;
         _mint(msg.sender, reward);
+        emit WithdrawEvent(msg.sender, block.timestamp);
     }
 }
